@@ -1,6 +1,5 @@
 load("@gazelle//:def.bzl", "gazelle")
 load("@rules_go//go:def.bzl", "go_binary", "go_library")
-load("@pkg_with_runfiles//:defs.bzl", "pkg_with_runfiles")
 
 # gazelle:prefix example.com/rooty
 gazelle(name = "gazelle")
@@ -18,11 +17,4 @@ go_binary(
     name = "rooty",
     embed = [":rooty_lib"],
     visibility = ["//visibility:public"],
-)
-
-pkg_with_runfiles(
-    name = "rooty_packaged",
-    binary = ":rooty",
-    binary_path_in_archive = "foo/program",
-    extra_data = [],
 )

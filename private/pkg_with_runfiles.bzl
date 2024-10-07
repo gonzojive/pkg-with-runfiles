@@ -112,7 +112,7 @@ pkg_with_runfiles = rule(
             allow_files = True,
         ),
         "_packager": attr.label(
-            default = Label("//go/cmd/packager:packager"),
+            default = Label("//private:packager"),
             allow_single_file = True,
             executable = True,
             cfg = "exec",
