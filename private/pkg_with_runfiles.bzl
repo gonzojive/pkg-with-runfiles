@@ -32,11 +32,17 @@ def _generate_input_spec(ctx):
         extra_data_label[DefaultInfo].default_runfiles
         for extra_data_label in ctx.attr.extra_data
     ])
+    repo_mapping_manifest = _get_repo_mapping_manifest(target_info)
 
     inputs_to_packager = (
         target_info.files.to_list() +
         target_runfiles.files.to_list()
     )
+
+    if repo_mapping_manifest:
+        inputs_to_packager.append(repo_mapping_manifest)
+
+    #fail("repo_mapping_manifest = {}".format(repo_mapping_manifest))
 
     return struct(
         inputs_to_packager = inputs_to_packager,
@@ -54,6 +60,7 @@ def _generate_input_spec(ctx):
                     for f in target_info.files.to_list()
                 ],
                 "binary_runfiles": _runfiles_to_dict(target_runfiles),
+                "repo_mapping_manifest": _file_to_dict(repo_mapping_manifest) if repo_mapping_manifest else None
             },
             indent = "  ",
         ),
@@ -92,6 +99,38 @@ def _file_to_dict(file):
         "root": file.root.path,
         "owner": str(file.owner),
     }
+
+def _get_files_to_run_provider(default_info):
+    """Safely retrieve FilesToRunProvider from a DefaultInfo.
+
+    Args:
+        default_info: A DefaultInfo instance of a target.
+
+    Returns:
+        FilesToRunProvider or None: FilesToRunProvider if found in target
+            provider, otherwise None. FilesToRunProvider should always
+            be returned for executable targets with a newer version of
+            bazel.
+    """
+    if not hasattr(default_info, "files_to_run"):
+        return None
+    return default_info.files_to_run
+
+def _get_repo_mapping_manifest(default_info):
+    """Safely retrieve repo_mapping_manifest from a DefaultInfo, if it exists.
+
+    Args:
+        default_info: A DefaultInfo instance of a target.
+
+    Returns:
+        File or None: repo_mapping_manifest
+    """
+    files_to_run_provider = _get_files_to_run_provider(default_info)
+    if files_to_run_provider:
+        # repo_mapping_manifest may not exist in older Bazel versions (<7.0.0)
+        # https://github.com/bazelbuild/bazel/issues/19937
+        return getattr(files_to_run_provider, "repo_mapping_manifest")
+    return None
 
 pkg_with_runfiles = rule(
     implementation = _pkg_with_runfiles_impl,

@@ -8,7 +8,10 @@ gazelle(name = "gazelle")
 go_library(
     name = "rooty_lib",
     srcs = ["main.go"],
-    data = ["@data1_from_rooty//:message.txt"],
+    data = [
+        "@data1_from_rooty//:message.txt",
+        ":unused.txt",
+    ],
     importpath = "example.com/rooty",
     visibility = ["//visibility:private"],
     deps = ["@rules_go//go/runfiles:go_default_library"],

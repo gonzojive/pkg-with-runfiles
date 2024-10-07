@@ -71,8 +71,14 @@ func writeTarEntries(parsedSpec *BinarySpec, tw *tar.Writer) error {
 		entries = append(entries, entry)
 	}
 
+	var allFiles []*File
+	allFiles = append(allFiles, parsedSpec.BinaryRunfiles.Files...)
+	if parsedSpec.RepoMappingManifest != nil {
+		allFiles = append(allFiles, parsedSpec.RepoMappingManifest)
+	}
+
 	eg := errgroup.Group{}
-	for _, runfile := range parsedSpec.BinaryRunfiles.Files {
+	for _, runfile := range allFiles {
 		runfile := runfile
 		eg.Go(func() error {
 			contents, err := os.ReadFile(runfile.Path)
@@ -86,7 +92,7 @@ func writeTarEntries(parsedSpec *BinarySpec, tw *tar.Writer) error {
 
 			push(tarEntry{
 				header: &tar.Header{
-					Name: nameInOutputArchive(runfile, parsedSpec.WorkspaceName, parsedSpec.BinaryTargetExecutableFile, parsedSpec.ExecutableNameInArchive),
+					Name: nameInOutputArchive(runfile, parsedSpec.WorkspaceName, parsedSpec.BinaryTargetExecutableFile, parsedSpec.RepoMappingManifest, parsedSpec.ExecutableNameInArchive),
 					Mode: int64(fileInfo.Mode().Perm()),
 					Size: int64(len(contents)),
 				},
@@ -114,16 +120,19 @@ func writeTarEntries(parsedSpec *BinarySpec, tw *tar.Writer) error {
 	return nil
 }
 
-func nameInOutputArchive(runfile *File, workspaceName string, executable *File, executableNameInArchive string) string {
+func nameInOutputArchive(runfile *File, workspaceName string, executable, repoMappingManifest *File, executableNameInArchive string) string {
 	// The layout here was inferred from
 	// https://docs.google.com/document/d/1skNx5o-8k5-YXUAyEETvr39eKoh9fecJbGUquPh5iy8/edit
 	// and from looking at example outputs of executables.
-	//
-	// TODO - reddaly: Review https://github.com/fmeum/proposals/blob/main/designs/2022-07-21-locating-runfiles-with-bzlmod.md
 	if runfile.Path == executable.Path {
 		return executableNameInArchive
 	}
 	runfilesRoot := executableNameInArchive + ".runfiles"
+	if repoMappingManifest != nil && runfile.Path == repoMappingManifest.Path {
+		// The _repo_mapping should appear within the runfiles directory.
+		// https://github.com/bazelbuild/proposals/blob/main/designs/2022-07-21-locating-runfiles-with-bzlmod.md#1-emit-a-repository-mapping-manifest-for-each-executable-target
+		return path.Join(runfilesRoot, "_repo_mapping")
+	}
 
 	// Data dependencies in repositories other than the root repo have prefix "../".
 	withoutPrefix := strings.TrimPrefix(runfile.ShortPath, "../")
@@ -163,6 +172,15 @@ type BinarySpec struct {
 
 	// The name of the file in the output.
 	ExecutableNameInArchive string `json:"executable_name_in_archive"`
+
+	// The reppository mapping file used to "translate an apparent repository
+	// name to a canonical repository name" according to the [proposal]
+	// that added this functionality to Bazel.
+	//
+	// This file may not be present when bzlmod is not enabled.
+	//
+	// [proposal]: https://github.com/bazelbuild/proposals/blob/main/designs/2022-07-21-locating-runfiles-with-bzlmod.md
+	RepoMappingManifest *File `json:"repo_mapping_manifest"`
 }
 
 // Runfiles contains information about a bazel runfiles object.
