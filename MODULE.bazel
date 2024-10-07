@@ -1,11 +1,11 @@
 module(
-    name = "pkg-with-runfiles",
+    name = "pkg_with_runfiles",
     version = "0.1",
 )
 
 bazel_dep(name = "rules_go", version = "0.50.1")
 
-bazel_dep(name = "gazelle", version = "0.39.1", dev_dependency = True)
+bazel_dep(name = "gazelle", version = "0.39.1")
 
 go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 
