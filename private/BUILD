@@ -1,0 +1,18 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+go_library(
+    name = "private_lib",
+    srcs = ["packager.go"],
+    importpath = "github.com/gonzojive/pkg-with-runfiles/private",
+    visibility = ["//visibility:private"],
+    deps = [
+        "@com_github_golang_glog//:glog",
+        "@org_golang_x_sync//errgroup",
+    ],
+)
+
+go_binary(
+    name = "private",
+    embed = [":private_lib"],
+    visibility = ["//visibility:public"],
+)

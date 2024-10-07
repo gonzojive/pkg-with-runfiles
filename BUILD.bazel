@@ -1,0 +1,4 @@
+load("@gazelle//:def.bzl", "gazelle")
+
+# gazelle:prefix github.com/gonzojive/pkg-with-runfiles
+gazelle(name = "gazelle")
