@@ -1,0 +1,11 @@
+module(
+    name = "rooty",
+    version = "0.1",
+)
+
+bazel_dep(name = "pkg_with_runfiles", version = "0.1")
+bazel_dep(name = "data1", version = "0.1", repo_name = "data1_from_rooty",)
+
+local_path_override(module_name = "data1", path = "../data1")
+local_path_override(module_name = "pkg_with_runfiles", path = "../../..")
+

@@ -2,3 +2,4 @@ bazel-pkg-with-runfiles
 bazel-bin
 bazel-out
 bazel-testlogs
+bazel-*
