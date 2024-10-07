@@ -1,0 +1,20 @@
+load("@gazelle//:def.bzl", "gazelle")
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+# gazelle:prefix example.com/rooty
+gazelle(name = "gazelle")
+
+go_library(
+    name = "rooty_lib",
+    srcs = ["main.go"],
+    data = ["@data1_from_rooty//:message.txt"],
+    importpath = "example.com/rooty",
+    visibility = ["//visibility:private"],
+    deps = ["@rules_go//go/runfiles:go_default_library"],
+)
+
+go_binary(
+    name = "rooty",
+    embed = [":rooty_lib"],
+    visibility = ["//visibility:public"],
+)
