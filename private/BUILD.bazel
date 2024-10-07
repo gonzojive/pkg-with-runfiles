@@ -12,7 +12,7 @@ go_library(
 )
 
 go_binary(
-    name = "private",
+    name = "packager",
     embed = [":private_lib"],
     visibility = ["//visibility:public"],
 )

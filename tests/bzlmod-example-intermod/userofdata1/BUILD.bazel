@@ -1,6 +1,5 @@
 load("@gazelle//:def.bzl", "gazelle")
 load("@rules_go//go:def.bzl", "go_binary", "go_library")
-load("@pkg_with_runfiles//:defs.bzl", "pkg_with_runfiles")
 
 # gazelle:prefix example.com/rooty
 gazelle(name = "gazelle")
@@ -8,10 +7,7 @@ gazelle(name = "gazelle")
 go_library(
     name = "rooty_lib",
     srcs = ["main.go"],
-    data = [
-        "@data1_from_rooty//:message.txt",
-        ":unused.txt",
-    ],
+    data = ["@data1_from_rooty//:message.txt"],
     importpath = "example.com/rooty",
     visibility = ["//visibility:private"],
     deps = ["@rules_go//go/runfiles:go_default_library"],
@@ -21,11 +17,4 @@ go_binary(
     name = "rooty",
     embed = [":rooty_lib"],
     visibility = ["//visibility:public"],
-)
-
-pkg_with_runfiles(
-    name = "rooty_packaged",
-    binary = ":rooty",
-    binary_path_in_archive = "foo/program",
-    extra_data = [],
 )
