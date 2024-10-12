@@ -44,6 +44,26 @@ def _generate_input_spec(ctx):
 
     #fail("repo_mapping_manifest = {}".format(repo_mapping_manifest))
 
+    src_name_to_file = {}
+    for target, name in ctx.attr.named_srcs.items():
+        files = target[DefaultInfo].files.to_list()
+        if len(files) != 1:
+            fail("named label {}: {} must correspond to exactly 1 file, got {}".format(
+                target.label,
+                name,
+                len(files)
+            ))
+        src_name_to_file[name] = files[0]
+        inputs_to_packager.append(files[0])
+
+    def extra_archive_entry(archive_path, src_name):
+        if src_name not in src_name_to_file:
+            fail("bad entry in archive_path_to_named_src dict: name {} not found in named_srcs list; add a \"//foo/bar\": {} ".format(src_name, src_name))
+        return {
+            "archive_path": archive_path,
+            "file": _file_to_dict(src_name_to_file[src_name])
+        }
+
     return struct(
         inputs_to_packager = inputs_to_packager,
         spec_json = json.encode_indent(
@@ -60,7 +80,12 @@ def _generate_input_spec(ctx):
                     for f in target_info.files.to_list()
                 ],
                 "binary_runfiles": _runfiles_to_dict(target_runfiles),
-                "repo_mapping_manifest": _file_to_dict(repo_mapping_manifest) if repo_mapping_manifest else None
+                "repo_mapping_manifest": _file_to_dict(repo_mapping_manifest) if repo_mapping_manifest else None,
+                "extra_archive_entries": [
+                    extra_archive_entry(archive_path, src_name)
+                    for archive_path, src_name
+                    in ctx.attr.archive_path_to_named_src.items()
+                ],
             },
             indent = "  ",
         ),
@@ -149,6 +174,16 @@ pkg_with_runfiles = rule(
             doc = ("Extra dependencies that should be included as if they " +
                    "were included as data dependencies of the executable."),
             allow_files = True,
+        ),
+        "named_srcs": attr.label_keyed_string_dict(
+            doc = ("Variable names for labels that will be remapped to " +
+                "paths within the archive according to " +
+                "named_labels_archive_paths."),
+            allow_files = True,
+        ),
+        "archive_path_to_named_src": attr.string_dict(
+            doc = ("A dictionary from a path within the output archive " + 
+            "to one of the values in the named_srcs dict."),
         ),
         "_packager": attr.label(
             default = Label("//private:packager"),

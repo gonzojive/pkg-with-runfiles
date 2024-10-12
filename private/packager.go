@@ -71,28 +71,49 @@ func writeTarEntries(parsedSpec *BinarySpec, tw *tar.Writer) error {
 		entries = append(entries, entry)
 	}
 
-	var allFiles []*File
-	allFiles = append(allFiles, parsedSpec.BinaryRunfiles.Files...)
-	if parsedSpec.RepoMappingManifest != nil {
-		allFiles = append(allFiles, parsedSpec.RepoMappingManifest)
+	type fileToProcess struct {
+		file         *File
+		explicitName string
 	}
+
+	var allFiles []*fileToProcess
+	allFiles = append(allFiles, mapSlice(parsedSpec.BinaryRunfiles.Files, func(f *File) *fileToProcess {
+		return &fileToProcess{f, ""}
+	})...)
+
+	if parsedSpec.RepoMappingManifest != nil {
+		allFiles = append(allFiles, &fileToProcess{
+			file: parsedSpec.RepoMappingManifest,
+		})
+	}
+	allFiles = append(allFiles, mapSlice(parsedSpec.ExtraArchiveEntries, func(entry *ExtraArchiveEntry) *fileToProcess {
+		return &fileToProcess{
+			file:         entry.File,
+			explicitName: entry.ArchivePath,
+		}
+	})...)
 
 	eg := errgroup.Group{}
 	for _, runfile := range allFiles {
 		runfile := runfile
 		eg.Go(func() error {
-			contents, err := os.ReadFile(runfile.Path)
+			contents, err := os.ReadFile(runfile.file.Path)
 			if err != nil {
-				return fmt.Errorf("error reading %q (short_path = %q): %w", runfile.Path, runfile.ShortPath, err)
+				return fmt.Errorf("error reading %q (short_path = %q): %w", runfile.file.Path, runfile.file.ShortPath, err)
 			}
-			fileInfo, err := os.Stat(runfile.Path)
+			fileInfo, err := os.Stat(runfile.file.Path)
 			if err != nil {
-				return fmt.Errorf("error calling os.Stat on %q (short_path = %q): %w", runfile.Path, runfile.ShortPath, err)
+				return fmt.Errorf("error calling os.Stat on %q (short_path = %q): %w", runfile.file.Path, runfile.file.ShortPath, err)
+			}
+
+			name := runfile.explicitName
+			if name == "" {
+				name = nameInOutputArchive(runfile.file, parsedSpec.WorkspaceName, parsedSpec.BinaryTargetExecutableFile, parsedSpec.RepoMappingManifest, parsedSpec.ExecutableNameInArchive)
 			}
 
 			push(tarEntry{
 				header: &tar.Header{
-					Name: nameInOutputArchive(runfile, parsedSpec.WorkspaceName, parsedSpec.BinaryTargetExecutableFile, parsedSpec.RepoMappingManifest, parsedSpec.ExecutableNameInArchive),
+					Name: name,
 					Mode: int64(fileInfo.Mode().Perm()),
 					Size: int64(len(contents)),
 				},
@@ -181,6 +202,18 @@ type BinarySpec struct {
 	//
 	// [proposal]: https://github.com/bazelbuild/proposals/blob/main/designs/2022-07-21-locating-runfiles-with-bzlmod.md
 	RepoMappingManifest *File `json:"repo_mapping_manifest"`
+
+	// A list of extra files to be added to the output archive.
+	ExtraArchiveEntries []*ExtraArchiveEntry `json:"extra_archive_entries"`
+}
+
+// ExtraArchiveEntry specifies an extra entry in the output tar and its
+// corresponding [File].
+type ExtraArchiveEntry struct {
+	// The path of the file within the output archive.
+	ArchivePath string `json:"archive_path"`
+	// The input [File].
+	File *File `json:"file"`
 }
 
 // Runfiles contains information about a bazel runfiles object.
@@ -203,3 +236,12 @@ type File struct {
 
 // LabelString is a superficial type for https://bazel.build/rules/lib/builtins/Label.html.
 type LabelString string
+
+// mapSlice applies a function to each element of a slice and returns a new slice.
+func mapSlice[T, U any](slice []T, fn func(T) U) []U {
+	result := []U{}
+	for _, v := range slice {
+		result = append(result, fn(v))
+	}
+	return result
+}
