@@ -1,0 +1,11 @@
+module(
+    name = "repo1",
+    version = "0.1",
+)
+
+bazel_dep(name = "rules_java", version = "7.2.0")
+bazel_dep(name = "pkg_with_runfiles", version = "0.1")
+local_path_override(
+    module_name = "pkg_with_runfiles",
+    path = "../../..",
+)

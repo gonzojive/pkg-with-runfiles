@@ -1,0 +1,21 @@
+load("@rules_java//java:defs.bzl", "java_binary")
+load("@pkg_with_runfiles//:defs.bzl", "pkg_with_runfiles")
+
+pkg_with_runfiles(
+    name = "pkg",
+    binary = ":program",
+    binary_path_in_archive = "foo/program",
+    named_srcs = {
+        ":program_deploy.jar": "deploy_jar",
+    },
+    archive_path_to_named_src = {
+        "foo/program_deploy.jar": "deploy_jar",
+    },
+    extra_data = [],
+)
+
+java_binary(
+    name = "program",
+    srcs = ["ExampleProgram.java"],
+    main_class = "com.example.ExampleProgram",
+)
